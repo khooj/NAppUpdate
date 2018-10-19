@@ -98,6 +98,7 @@
     </Compile>
     <Compile Include="Sources\IUpdateSource.cs" />
     <Compile Include="Sources\MemorySource.cs" />
+    <Compile Include="Sources\ResumableUriSource.cs" />
     <Compile Include="Sources\SimpleWebSource.cs" />
     <Compile Include="Sources\UncSource.cs" />
     <Compile Include="Tasks\FileUpdateTask.cs" />
@@ -106,6 +107,7 @@
     <Compile Include="Tasks\UpdateTaskAliasAttribute.cs" />
     <Compile Include="Tasks\UpdateTaskBase.cs" />
     <Compile Include="UpdateManager.cs" />
+    <Compile Include="Utils\Adler32.cs" />
     <Compile Include="Utils\FileChecksum.cs" />
     <Compile Include="Utils\FileDownloader.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
