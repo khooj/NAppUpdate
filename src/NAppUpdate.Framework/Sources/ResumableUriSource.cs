@@ -48,12 +48,14 @@ namespace NAppUpdate.Framework.Sources
         public bool UseRelativeProgress;
 
         public static WebProxy CustomProxy;
-        private Action<UpdateProgressInfo> onProgress_;
+        private Action<UpdateProgressInfo> _onProgress;
+		private string _tempDirectory;
 
         public ResumableUriSource(string feedUrl)
         {
             feedUrl_ = feedUrl;
-        }
+			_tempDirectory = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+		}
 
         public ResumableUriSource()
         {
@@ -63,19 +65,12 @@ namespace NAppUpdate.Framework.Sources
         public string GetUpdatesFeed()
         {
             var data = string.Empty;
-            var p = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
-            if (!Directory.Exists(p))
-                Directory.CreateDirectory(p);
             var f = string.Empty;
 
-            Uri u = new Uri(feedUrl_);
-                f = Path.GetFileName(u.LocalPath);
-
-            if (!GetData(feedUrl_, feedUrl_, null, ref p))
+            if (!GetData(feedUrl_, feedUrl_, null, ref f))
                 return data;
 
-            // p should point to file now
-            using (FileStream fs = File.Open(p, FileMode.Open))
+            using (FileStream fs = File.Open(f, FileMode.Open))
             using (var s = new StreamReader(fs, true))
             {
                 data = s.ReadToEnd();
@@ -113,12 +108,12 @@ namespace NAppUpdate.Framework.Sources
             // try each url in the list until one succeeds
             bool allFailedWaitingForResponse = false;
             Exception ex = null;
-            onProgress_ = onProgress;
+            _onProgress = onProgress;
             try
             {
                 url_ = url;
                 baseUrl_ = baseUrl;
-                BeginDownload(ref tempLocation);
+                BeginDownload();
                 ValidateDownload();
             }
             catch (Exception except)
@@ -141,7 +136,7 @@ namespace NAppUpdate.Framework.Sources
                 {
                     url_ = url;
                     baseUrl_ = baseUrl;
-                    BeginDownload(ref tempLocation);
+                    BeginDownload();
                     ValidateDownload();
                 }
                 catch (Exception except)
@@ -156,6 +151,7 @@ namespace NAppUpdate.Framework.Sources
                 StillWorking = false,
             });
 
+			tempLocation = DownloadingTo;
             return true;
         }
 
@@ -165,7 +161,7 @@ namespace NAppUpdate.Framework.Sources
         }
 
         // Begin downloading the file at the specified url, and save it to the given folder.
-        private void BeginDownload(ref string tempLocation)
+        private void BeginDownload()
         {
             DownloadData data = null;
             FileStream fs = null;
@@ -175,21 +171,20 @@ namespace NAppUpdate.Framework.Sources
                 //start the stopwatch for speed calc
                 sw.Start();
 
-                if (!Directory.Exists(tempLocation))
+                if (!Directory.Exists(_tempDirectory))
                 {
-                    Directory.CreateDirectory(tempLocation);
+                    Directory.CreateDirectory(_tempDirectory);
                 }
 
                 // get download details 
                 waitingForResponse = true;
-                data = DownloadData.Create(url_, tempLocation);
+                data = DownloadData.Create(url_, _tempDirectory);
                 waitingForResponse = false;
 
                 //reset the adler
                 downloadedAdler32.Reset();
 
                 DownloadingTo = data.Filename;
-                tempLocation = data.Filename;
 
                 if (!File.Exists(DownloadingTo))
                 {
@@ -234,7 +229,7 @@ namespace NAppUpdate.Framework.Sources
                     // send progress info
                     if (data.PercentDone > LastProgress)
                     {
-                        onProgress_?.Invoke(new DownloadProgressInfo
+                        _onProgress?.Invoke(new DownloadProgressInfo
                         {
                             Percentage = data.PercentDone,
                             DownloadedInBytes = data.TotalDownloadSize,

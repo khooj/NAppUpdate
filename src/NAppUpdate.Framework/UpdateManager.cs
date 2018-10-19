@@ -24,6 +24,8 @@ namespace NAppUpdate.Framework
 		private UpdateManager()
 		{
 			IsWorking = false;
+			MaximumRetries = 1;
+			RetriesTimeout = TimeSpan.FromSeconds(1);
 			State = UpdateProcessState.NotChecked;
 			UpdatesToApply = new List<IUpdateTask>();
 			ApplicationPath = Process.GetCurrentProcess().MainModule.FileName;
@@ -86,6 +88,14 @@ namespace NAppUpdate.Framework
 		public IUpdateFeedReader UpdateFeedReader { get; set; }
 
 		public Logger Logger { get; private set; }
+		/// <summary>
+		/// Maximum retries for file downloads (only affects PrepareUpdate())
+		/// </summary>
+		public int MaximumRetries { get; set; }
+		/// <summary>
+		/// Timeout between retries
+		/// </summary>
+		public TimeSpan RetriesTimeout { get; set; }
 
 		public IEnumerable<IUpdateTask> Tasks { get { return UpdatesToApply; } }
 
@@ -239,15 +249,26 @@ namespace NAppUpdate.Framework
 						var t = task;
 						task.ProgressDelegate += status => TaskProgressCallback(status, t);
 
-						try
+						int currentRetry = 0;
+						while (currentRetry < MaximumRetries)
 						{
-							task.Prepare(UpdateSource);
-						}
-						catch (Exception ex)
-						{
-							task.ExecutionStatus = TaskExecutionStatus.FailedToPrepare;
-							Logger.Log(ex);
-							throw new UpdateProcessFailedException("Failed to prepare task: " + task.Description, ex);
+							++currentRetry;
+							try
+							{
+								task.Prepare(UpdateSource);
+							}
+							catch (Exception ex)
+							{
+								Logger.Log(ex);
+
+								if (currentRetry == MaximumRetries)
+								{
+									task.ExecutionStatus = TaskExecutionStatus.FailedToPrepare;
+									throw new UpdateProcessFailedException("Failed to prepare task: " + task.Description, ex);
+								}
+
+								Thread.Sleep(RetriesTimeout);
+							}
 						}
 
 						task.ExecutionStatus = TaskExecutionStatus.Prepared;
