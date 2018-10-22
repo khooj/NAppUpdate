@@ -450,6 +450,11 @@ namespace NAppUpdate.Framework.Sources
                     downloadData.response = req.GetResponse();
                     downloadData.GetFileSize();
 
+					// send REST cmd to 0 in case after last file server doesnt cleared it already
+					req = GetRequest(url);
+					((FtpWebRequest)req).ContentOffset = 0;
+					downloadData.response = req.GetResponse();
+
                     // new request for downloading the FTP file
                     req = GetRequest(url);
                     downloadData.response = req.GetResponse();
@@ -537,35 +542,39 @@ namespace NAppUpdate.Framework.Sources
 
             if (downloadData.IsProgressKnown && File.Exists(downloadTo))
             {
-                // We only support resuming on http requests
-                if (!(downloadData.Response is HttpWebResponse))
-                {
+                // Try and start where the file on disk left off
+                downloadData.start = new FileInfo(downloadTo).Length;
+
+                // If we have a file that's bigger than what is online, then something 
+                // strange happened. Delete it and start again.
+                if (downloadData.start > downloadData.size)
                     File.Delete(downloadTo);
-                }
-                else
+                else if (downloadData.start < downloadData.size)
                 {
-                    // Try and start where the file on disk left off
-                    downloadData.start = new FileInfo(downloadTo).Length;
+                    // Try and resume by creating a new request with a new start position
+                    downloadData.response.Close();
 
-                    // If we have a file that's bigger than what is online, then something 
-                    // strange happened. Delete it and start again.
-                    if (downloadData.start > downloadData.size)
-                        File.Delete(downloadTo);
-                    else if (downloadData.start < downloadData.size)
-                    {
-                        // Try and resume by creating a new request with a new start position
-                        downloadData.response.Close();
-                        req = GetRequest(url);
-                        ((HttpWebRequest)req).AddRange((int)downloadData.start);
-                        downloadData.response = req.GetResponse();
+					if (downloadData.response is HttpWebResponse)
+					{
+						req = GetRequest(url);
+						((HttpWebRequest)req).AddRange((int)downloadData.start);
+						downloadData.response = req.GetResponse();
 
-                        if (((HttpWebResponse)downloadData.Response).StatusCode != HttpStatusCode.PartialContent)
-                        {
-                            // They didn't support our resume request. 
-                            File.Delete(downloadTo);
-                            downloadData.start = 0;
-                        }
-                    }
+						if (((HttpWebResponse)downloadData.Response).StatusCode != HttpStatusCode.PartialContent)
+						{
+							// They didn't support our resume request. 
+							File.Delete(downloadTo);
+							downloadData.start = 0;
+						}
+					}
+					else
+					{
+						req = GetRequest(url);
+						((FtpWebRequest)req).ContentOffset = (int)downloadData.start;
+						downloadData.response = req.GetResponse();
+
+						// Dont really know how to check response to REST cmd, just trying to download it
+					}
                 }
             }
 
