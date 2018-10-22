@@ -16,6 +16,9 @@ class Options
 	[Option('u', "update", Default = false, HelpText = "Update application")]
 	public bool UpdateApplication { get; set; }
 
+	[Option('l', "log", Default = false, HelpText = "Write log file")]
+	public bool EnableLogging { get; set; }
+
 	[Usage(ApplicationAlias = "updater")]
 	public static IEnumerable<Example> Examples
 	{
@@ -50,8 +53,16 @@ namespace NAppUpdate.Updater.Standalone
 			Console.CancelKeyPress += new ConsoleCancelEventHandler(CancelHandler);
 
 			var opts = new Options();
-			var args_result = Parser.Default.ParseArguments<Options>(args)
-				.WithParsed(o => opts = o);
+			var args_result = Parser.Default.ParseArguments<Options>(args);
+			if (args_result is Parsed<Options>)
+			{
+				opts = (args_result as Parsed<Options>).Value;
+			}
+
+			if (args_result is NotParsed<Options>)
+			{
+				Environment.Exit(3);
+			}
 
 			UpdateManager upd = UpdateManager.Instance;
 			upd.Config.TempFolder = Path.GetTempPath();
