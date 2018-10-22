@@ -138,6 +138,7 @@ namespace NAppUpdate.Framework.Sources
                     baseUrl_ = baseUrl;
                     BeginDownload();
                     ValidateDownload();
+					ex = null;
                 }
                 catch (Exception except)
                 {
@@ -152,7 +153,7 @@ namespace NAppUpdate.Framework.Sources
             });
 
 			tempLocation = DownloadingTo;
-            return true;
+			return ex == null;
         }
 
         public static void SetupSaneDownloadOptions()
@@ -451,13 +452,13 @@ namespace NAppUpdate.Framework.Sources
                     downloadData.GetFileSize();
 
 					// send REST cmd to 0 in case after last file server doesnt cleared it already
-					req = GetRequest(url);
-					((FtpWebRequest)req).ContentOffset = 0;
-					downloadData.response = req.GetResponse();
+					//req = GetRequest(url);
+					//downloadData.response = req.GetResponse();
 
                     // new request for downloading the FTP file
                     req = GetRequest(url);
-                    downloadData.response = req.GetResponse();
+					((FtpWebRequest)req).ContentOffset = 0;
+					downloadData.response = req.GetResponse();
                 }
                 else
                 {
@@ -573,7 +574,11 @@ namespace NAppUpdate.Framework.Sources
 						((FtpWebRequest)req).ContentOffset = (int)downloadData.start;
 						downloadData.response = req.GetResponse();
 
-						// Dont really know how to check response to REST cmd, just trying to download it
+						if ((downloadData.Response as FtpWebResponse).StatusCode != FtpStatusCode.FileCommandPending)
+						{
+							File.Delete(downloadTo);
+							downloadData.start = 0;
+						}
 					}
                 }
             }
@@ -632,21 +637,23 @@ namespace NAppUpdate.Framework.Sources
             WebRequest request = WebRequest.Create(url);
             request.CachePolicy = new System.Net.Cache.RequestCachePolicy(System.Net.Cache.RequestCacheLevel.NoCacheNoStore);
 
-            if (request is HttpWebRequest)
+			if (request is HttpWebRequest)
             {
-                request.Credentials = hasCredentials ? new NetworkCredential(uri.UserName, uri.Password) : CredentialCache.DefaultCredentials;
+				request.Credentials = hasCredentials ? new NetworkCredential(uri.UserName, uri.Password) : CredentialCache.DefaultCredentials;
 
-                // Some servers explode if the user agent is missing.
-                // Some servers explode if the user agent is "non-standard" (e.g. "wyUpdate / " + VersionTools.FromExecutingAssembly())
+				// Some servers explode if the user agent is missing.
+				// Some servers explode if the user agent is "non-standard" (e.g. "wyUpdate / " + VersionTools.FromExecutingAssembly())
 
-                // Thus we're forced to mimic IE 9 User agent
-                ((HttpWebRequest)request).UserAgent = "Mozilla/5.0 (Windows; U; MSIE 9.0; Windows NT 6.1; en-US; NAppUpdate)";
+				// Thus we're forced to mimic IE 9 User agent
+				((HttpWebRequest)request).UserAgent = "Mozilla/5.0 (Windows; U; MSIE 9.0; Windows NT 6.1; en-US; NAppUpdate)";
             }
             else if (request is FtpWebRequest)
             {
                 // set to binary mode (should fix crummy servers that need this spelled out to them)
                 // namely ProFTPd that chokes if you request the file size without first setting "TYPE I" (binary mode)
                 (request as FtpWebRequest).UseBinary = true;
+				(request as FtpWebRequest).Method = WebRequestMethods.Ftp.DownloadFile;
+
             }
 
             return request;

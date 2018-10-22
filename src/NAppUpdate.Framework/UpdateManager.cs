@@ -268,7 +268,9 @@ namespace NAppUpdate.Framework
 								}
 
 								Thread.Sleep(RetriesTimeout);
+                                continue;
 							}
+                            break;
 						}
 
 						task.ExecutionStatus = TaskExecutionStatus.Prepared;
