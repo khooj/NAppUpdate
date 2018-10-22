@@ -91,7 +91,21 @@ namespace NAppUpdate.Framework
 		/// <summary>
 		/// Maximum retries for file downloads (only affects PrepareUpdate())
 		/// </summary>
-		public int MaximumRetries { get; set; }
+		public int MaximumRetries
+		{
+			get
+			{
+				return maximumRetries;
+			}
+			set
+			{
+				if (value <= 0)
+					maximumRetries = 1;
+				else
+					maximumRetries = value;
+			}
+		}
+		private int maximumRetries = 1;
 		/// <summary>
 		/// Timeout between retries
 		/// </summary>
@@ -153,7 +167,30 @@ namespace NAppUpdate.Framework
 				lock (UpdatesToApply)
 				{
 					UpdatesToApply.Clear();
-					var tasks = UpdateFeedReader.Read(UpdateSource.GetUpdatesFeed());
+					IList<IUpdateTask> tasks = null;
+					int currentRetry = 0;
+					while (currentRetry < MaximumRetries)
+					{
+						++currentRetry;
+						try
+						{
+							tasks = UpdateFeedReader.Read(UpdateSource.GetUpdatesFeed());
+						}
+						catch (Exception ex)
+						{
+							Logger.Log(ex);
+
+							if (currentRetry == MaximumRetries)
+							{
+								throw new UpdateProcessFailedException("Failed to retrieve feed: " + ex.ToString());
+							}
+
+							Thread.Sleep(RetriesTimeout);
+							continue;
+						}
+						break;
+					}
+
 					foreach (var t in tasks)
 					{
 						if (ShouldStop)
