@@ -35,6 +35,7 @@ namespace NAppUpdate.Updater.Standalone
 	{
 		public static void CancelHandler(object sender, ConsoleCancelEventArgs args)
 		{
+			UpdateManager.Instance.Abort(true);
 			Environment.Exit(2);
 		}
 
