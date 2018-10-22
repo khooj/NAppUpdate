@@ -57,7 +57,7 @@ namespace NAppUpdate.Updater.Standalone
 			upd.Config.TempFolder = Path.GetTempPath();
 			upd.UpdateFeedReader = new NauXmlFeedReader();
 			upd.UpdateSource = new ResumableUriSource(opts.FeedUri);
-			upd.MaximumRetries = 100;
+			upd.MaximumRetries = 10;
 
 			try
 			{
@@ -100,7 +100,7 @@ namespace NAppUpdate.Updater.Standalone
 
 			try
 			{
-				UpdateManager.Instance.ApplyUpdates(false, true, true);
+				UpdateManager.Instance.ApplyUpdates(false, true, false);
 			}
 			catch (Exception ex)
 			{
