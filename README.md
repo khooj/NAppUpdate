@@ -4,6 +4,12 @@
 
 An application auto-update framework for .NET
 
+## Changes made in this fork
+
+1. Added ResumableUriSource and Adler32 classes that taken from [wyUpdate](https://github.com/wyattoday/wyupdate) project licensed under BSD-2 clause license
+2. Added standalone updater that informs caller about update process by exit codes
+3. Added MaximumRetries option to UpdateManager class to make sure that we will prepare updates in case connection issues
+
 ## Contributions
 
 Contributions are more than welcome.
