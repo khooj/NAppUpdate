@@ -111,7 +111,7 @@ namespace NAppUpdate.Updater.Standalone
 
 			try
 			{
-				UpdateManager.Instance.ApplyUpdates(false, true, false);
+				UpdateManager.Instance.ApplyUpdates(false, opts.EnableLogging, false);
 			}
 			catch (Exception ex)
 			{
