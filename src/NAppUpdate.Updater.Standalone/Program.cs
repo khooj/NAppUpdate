@@ -7,21 +7,21 @@ using System.Text;
 
 class Options
 {
-	//[Option('f', "feed", Required = true, HelpText = "XML Feed uri source")]
 	public string FeedUri { get; set; }
-
-	//[Option('u', "update", Default = false, HelpText = "Update application")]
 	public bool UpdateApplication { get; set; }
-
-	//[Option('l', "log", Default = false, HelpText = "Write log file")]
 	public bool EnableLogging { get; set; }
+	public bool Rollback { get; set; }
 
 	public static string Usage()
 	{
 		StringBuilder b = new StringBuilder();
-		b.AppendFormat("Usage:");
-		b.AppendFormat("{0} <-f/--feed> uri [-u/--update] [-l/--logging]",
+		b.AppendFormat("Usage:\n");
+		b.AppendFormat("{0} <-f/--feed> uri [-u/--update] [-l/--logging] [-n/--no-rollback]\n",
 			Path.GetFileName(System.Reflection.Assembly.GetEntryAssembly().Location));
+		b.Append("-f/--feed uri\t\tGet feed file from URI and check updates\n");
+		b.Append("-u/--update\t\tStart update if available (false by default)\n");
+		b.Append("-l/--logging\t\tCreate update log in base directory (false by default)\n");
+		b.Append("-n/--no-rollback\t\tDo not rollback if update error occured (true by default)\n");
 		return b.ToString();
 	}
 }
@@ -43,6 +43,7 @@ namespace NAppUpdate.Updater.Standalone
 				FeedUri = null,
 				UpdateApplication = false,
 				EnableLogging = false,
+				Rollback = true,
 			};
 
 			for (int i = 0; i < args.Length; ++i)
@@ -65,6 +66,10 @@ namespace NAppUpdate.Updater.Standalone
 					case "-l":
 					case "--logging":
 						opts.EnableLogging = true;
+						continue;
+					case "-n":
+					case "--no-rollback":
+						opts.Rollback = false;
 						continue;
 					default:
 						throw new ArgumentException("Unknown argument: " + opt);
@@ -139,11 +144,13 @@ namespace NAppUpdate.Updater.Standalone
 
 			try
 			{
-				UpdateManager.Instance.ApplyUpdates(false, opts.EnableLogging, false);
+				upd.ApplyUpdates(false, opts.EnableLogging, false);
 			}
 			catch (Exception ex)
 			{
 				Console.WriteLine("Applying updates failed: {0}", ex.ToString());
+				if (opts.Rollback)
+					upd.RollbackUpdates();
 				Environment.Exit(3);
 			}
 
