@@ -85,8 +85,6 @@ namespace NAppUpdate.Updater.Standalone
 				Environment.Exit(3);
 			}
 
-			Console.WriteLine("Updates available: {0}", upd.UpdatesAvailable);
-
 			if (upd.UpdatesAvailable == 0)
 				Environment.Exit(0);
 
@@ -95,19 +93,14 @@ namespace NAppUpdate.Updater.Standalone
 
 			try
 			{
-				Stopwatch sw = new Stopwatch();
-				sw.Start();
 				if (upd.UpdatesAvailable > 0)
 					upd.PrepareUpdates();
-				Console.WriteLine("Time preparing updates: {0}", sw.Elapsed.TotalSeconds);
 			}
 			catch (Exception ex)
 			{
 				Console.WriteLine("Preparing failed: {0}", ex.ToString());
 				Environment.Exit(3);
 			}
-
-			Console.WriteLine("Installing updates");
 
 			try
 			{
@@ -119,7 +112,6 @@ namespace NAppUpdate.Updater.Standalone
 				Environment.Exit(3);
 			}
 
-			Console.WriteLine("Ended");
 			Environment.Exit(0);
 		}
 	}
