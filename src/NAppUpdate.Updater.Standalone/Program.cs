@@ -3,32 +3,26 @@ using NAppUpdate.Framework;
 using NAppUpdate.Framework.Sources;
 using NAppUpdate.Framework.FeedReaders;
 using System.IO;
-using System.Diagnostics;
-using System.Collections.Generic;
-using CommandLine;
-using CommandLine.Text;
+using System.Text;
 
 class Options
 {
-	[Option('f', "feed", Required = true, HelpText = "XML Feed uri source")]
+	//[Option('f', "feed", Required = true, HelpText = "XML Feed uri source")]
 	public string FeedUri { get; set; }
 
-	[Option('u', "update", Default = false, HelpText = "Update application")]
+	//[Option('u', "update", Default = false, HelpText = "Update application")]
 	public bool UpdateApplication { get; set; }
 
-	[Option('l', "log", Default = false, HelpText = "Write log file")]
+	//[Option('l', "log", Default = false, HelpText = "Write log file")]
 	public bool EnableLogging { get; set; }
 
-	[Usage(ApplicationAlias = "updater")]
-	public static IEnumerable<Example> Examples
+	public static string Usage()
 	{
-		get
-		{
-			return new List<Example>()
-			{
-				new Example("Update application using FTP feed", new Options { FeedUri = "ftp://example.com/feed.xml", UpdateApplication = false })
-			};
-		}
+		StringBuilder b = new StringBuilder();
+		b.AppendFormat("Usage:");
+		b.AppendFormat("{0} <-f/--feed> uri [-u/--update] [-l/--logging]",
+			Path.GetFileName(System.Reflection.Assembly.GetEntryAssembly().Location));
+		return b.ToString();
 	}
 }
 
@@ -42,6 +36,47 @@ namespace NAppUpdate.Updater.Standalone
 			Environment.Exit(2);
 		}
 
+		static Options ParseArgsSimple(string[] args)
+		{
+			var opts = new Options
+			{
+				FeedUri = null,
+				UpdateApplication = false,
+				EnableLogging = false,
+			};
+
+			for (int i = 0; i < args.Length; ++i)
+			{
+				string opt = args[i];
+
+				switch (opt)
+				{
+					case "-f":
+					case "--feed":
+						if (i + 1 >= args.Length)
+							throw new ArgumentException("Wrong arguments count");
+						opts.FeedUri = args[i + 1];
+						++i;
+						continue;
+					case "-u":
+					case "--update":
+						opts.UpdateApplication = true;
+						continue;
+					case "-l":
+					case "--logging":
+						opts.EnableLogging = true;
+						continue;
+					default:
+						throw new ArgumentException("Unknown argument: " + opt);
+				}
+			}
+
+			if (string.IsNullOrEmpty(opts.FeedUri))
+				throw new ArgumentException("Not supplied feed URI");
+
+			return opts;
+		}
+
 		static void Main(string[] args)
 		{
 			// exit codes
@@ -52,15 +87,15 @@ namespace NAppUpdate.Updater.Standalone
 
 			Console.CancelKeyPress += new ConsoleCancelEventHandler(CancelHandler);
 
-			var opts = new Options();
-			var args_result = Parser.Default.ParseArguments<Options>(args);
-			if (args_result is Parsed<Options>)
+			Options opts = null;
+			try
 			{
-				opts = (args_result as Parsed<Options>).Value;
+				opts = ParseArgsSimple(args);
 			}
-
-			if (args_result is NotParsed<Options>)
+			catch (ArgumentException ex)
 			{
+				Console.WriteLine(ex.ToString());
+				Console.WriteLine(Options.Usage());
 				Environment.Exit(3);
 			}
 
