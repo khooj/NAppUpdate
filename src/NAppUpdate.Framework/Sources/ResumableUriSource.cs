@@ -32,7 +32,6 @@ namespace NAppUpdate.Framework.Sources
 
         //download site and destination
         string url_;
-        string baseUrl_;
         string feedUrl_;
 
         bool waitingForResponse;
@@ -67,7 +66,7 @@ namespace NAppUpdate.Framework.Sources
             var data = string.Empty;
             var f = string.Empty;
 
-            if (!GetData(feedUrl_, feedUrl_, null, ref f))
+            if (!GetData(feedUrl_, null, null, ref f))
                 return data;
 
             using (FileStream fs = File.Open(f, FileMode.Open))
@@ -91,6 +90,11 @@ namespace NAppUpdate.Framework.Sources
 
                 return false;
             }
+
+			if (!string.IsNullOrEmpty(baseUrl))
+			{
+				url = baseUrl + "/" + url;
+			}
          
             // use the custom proxy if provided
             if (CustomProxy != null)
@@ -112,7 +116,6 @@ namespace NAppUpdate.Framework.Sources
             try
             {
                 url_ = url;
-                baseUrl_ = baseUrl;
                 BeginDownload();
                 ValidateDownload();
             }
@@ -135,7 +138,6 @@ namespace NAppUpdate.Framework.Sources
                 try
                 {
                     url_ = url;
-                    baseUrl_ = baseUrl;
                     BeginDownload();
                     ValidateDownload();
 					ex = null;
