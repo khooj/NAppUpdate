@@ -451,7 +451,8 @@ namespace NAppUpdate.Framework.Sources
                     // get the file size for FTP files
                     req.Method = WebRequestMethods.Ftp.GetFileSize;
                     downloadData.response = req.GetResponse();
-                    downloadData.GetFileSize();
+					if ((downloadData.response as FtpWebResponse).StatusCode != FtpStatusCode.CommandNotImplemented)
+						downloadData.GetFileSize();
 
 					// send REST cmd to 0 in case after last file server doesnt cleared it already
 					//req = GetRequest(url);
@@ -637,7 +638,6 @@ namespace NAppUpdate.Framework.Sources
             }
 
             WebRequest request = WebRequest.Create(url);
-            request.CachePolicy = new System.Net.Cache.RequestCachePolicy(System.Net.Cache.RequestCacheLevel.NoCacheNoStore);
 
 			if (request is HttpWebRequest)
             {
@@ -654,7 +654,6 @@ namespace NAppUpdate.Framework.Sources
                 // set to binary mode (should fix crummy servers that need this spelled out to them)
                 // namely ProFTPd that chokes if you request the file size without first setting "TYPE I" (binary mode)
                 (request as FtpWebRequest).UseBinary = true;
-				(request as FtpWebRequest).Method = WebRequestMethods.Ftp.DownloadFile;
 
             }
 
