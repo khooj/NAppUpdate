@@ -20,28 +20,36 @@ namespace NAppUpdate.Framework.Tasks
 		[NauField("shell", "Use shell to execute", false)]
 		public bool UseShellExecute { get; set; }
 
+		private string _appDir;
+
 		public override void Prepare(IUpdateSource source)
 		{
+			_appDir = Path.GetDirectoryName(UpdateManager.Instance.ApplicationPath);
 		}
 
 		public override TaskExecutionStatus Execute(bool coldRun)
 		{
+			if (!coldRun)
+				return TaskExecutionStatus.RequiresAppRestart;
+			
 			Thread.Sleep(1000);
+			string filePath = Path.Combine(_appDir, Filename);
+			if (!File.Exists(filePath))
+			{
+				UpdateManager.Instance.Logger.Log(Logger.SeverityLevel.Error, "File not exist: ");
+				throw new UpdateProcessFailedException("File not exist: " + filePath);
+			}
+
 			ProcessStartInfo info = new ProcessStartInfo
 			{
 				UseShellExecute = UseShellExecute,
 				FileName = Filename,
-				WorkingDirectory = Path.GetDirectoryName(UpdateManager.Instance.ApplicationPath),
+				WorkingDirectory = _appDir,
 				Arguments = Arguments
 			};
 
-			if (!File.Exists(Path.Combine(Path.GetDirectoryName(UpdateManager.Instance.ApplicationPath), Filename)))
-			{
-				Console.WriteLine("File not exists");
-			}
-
-			Process p = Process.Start(info);
-			return p.HasExited ? TaskExecutionStatus.Failed : TaskExecutionStatus.Successful;
+			Process.Start(info);
+			return TaskExecutionStatus.Successful;
 		}
 
 		public override bool Rollback()
