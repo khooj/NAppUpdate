@@ -105,6 +105,7 @@
     <Compile Include="Tasks\IUpdateTask.cs" />
     <Compile Include="Tasks\RegistryTask.cs" />
     <Compile Include="Tasks\StartProcessTask.cs" />
+    <Compile Include="Tasks\StopProcessTask.cs" />
     <Compile Include="Tasks\UpdateTaskAliasAttribute.cs" />
     <Compile Include="Tasks\UpdateTaskBase.cs" />
     <Compile Include="UpdateManager.cs" />
