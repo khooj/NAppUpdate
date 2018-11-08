@@ -8,6 +8,7 @@ using NAppUpdate.Framework.FeedReaders;
 using NAppUpdate.Framework.Sources;
 using NAppUpdate.Framework.Tasks;
 using NAppUpdate.Framework.Utils;
+using System.Linq;
 
 namespace NAppUpdate.Framework
 {
@@ -81,7 +82,20 @@ namespace NAppUpdate.Framework
 
 		public string BaseUrl { get; set; }
 		internal IList<IUpdateTask> UpdatesToApply { get; private set; }
-		public int UpdatesAvailable { get { return UpdatesToApply == null ? 0 : UpdatesToApply.Count; } }
+		public int UpdatesAvailable
+		{
+			get
+			{
+				return UpdatesToApply == null ?
+					0 :
+					UpdatesToApply.Count(task =>
+					{
+						return
+							task.GetType() != typeof(StartProcessTask) &&
+							task.GetType() != typeof(StopProcessTask);
+					});
+			}
+		}
 		public UpdateProcessState State { get; private set; }
 
 		public IUpdateSource UpdateSource { get; set; }
