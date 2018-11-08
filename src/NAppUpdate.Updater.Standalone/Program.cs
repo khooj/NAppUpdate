@@ -126,10 +126,16 @@ namespace NAppUpdate.Updater.Standalone
 			}
 
 			if (upd.UpdatesAvailable == 0)
+			{
+				Console.WriteLine("Updates available: {0}", upd.UpdatesAvailable);
 				Environment.Exit(0);
+			}
 
 			if (upd.UpdatesAvailable > 0 && !opts.UpdateApplication)
+			{
+				Console.WriteLine("Updates available: {0}", upd.UpdatesAvailable);
 				Environment.Exit(1);
+			}
 
 			try
 			{
@@ -144,6 +150,7 @@ namespace NAppUpdate.Updater.Standalone
 
 			try
 			{
+				Console.WriteLine("Updates applied");
 				upd.ApplyUpdates(false, opts.EnableLogging, false);
 			}
 			catch (Exception ex)
