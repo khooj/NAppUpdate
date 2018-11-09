@@ -10,6 +10,7 @@ An application auto-update framework for .NET
 2. Added standalone updater that informs caller about update process by exit codes
 3. Added MaximumRetries option to UpdateManager class to make sure that we will prepare updates in case connection issues
 4. Added StartProcessTask and StopProcessTask to configure start/stop processes in case standalone updater
+5. Made NAppUpdate.Updater as console app
 
 ## Contributions
 
