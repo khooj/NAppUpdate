@@ -1,5 +1,6 @@
 using System;
-using System.Collections.Specialized;
+using System.Collections;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -32,6 +33,7 @@ namespace FeedBuilder
 
 		public string FileName { get; set; }
 		public bool ShowGui { get; set; }
+		private List<string> _ignoredFiles { get; set; }
 
 		#endregion
 
@@ -107,7 +109,12 @@ namespace FeedBuilder
 			chkCleanUp.Checked = Settings.Default.CleanUp;
             txtAddExtension.Text = Settings.Default.AddExtension;
 
-            if (Settings.Default.IgnoreFiles == null) Settings.Default.IgnoreFiles = new StringCollection();
+			if (_ignoredFiles == null)
+				_ignoredFiles = new List<string>();
+
+			if (!string.IsNullOrEmpty(Settings.Default.IgnoreFiles))
+				_ignoredFiles.AddRange(Settings.Default.IgnoreFiles.Split(';'));
+
 			ReadFiles();
 			UpdateTitle();
 		}
@@ -138,12 +145,16 @@ namespace FeedBuilder
 			Settings.Default.CopyFiles = chkCopyFiles.Checked;
 			Settings.Default.CleanUp = chkCleanUp.Checked;
 
-			if (Settings.Default.IgnoreFiles == null) Settings.Default.IgnoreFiles = new StringCollection();
-			Settings.Default.IgnoreFiles.Clear();
+			if (_ignoredFiles == null)
+				_ignoredFiles = new List<string>();
+			_ignoredFiles.Clear();
+
 			foreach (ListViewItem thisItem in lstFiles.Items)
 			{
-				if (!thisItem.Checked) Settings.Default.IgnoreFiles.Add(thisItem.Text);
+				if (!thisItem.Checked) _ignoredFiles.Add(thisItem.Text);
 			}
+
+			Settings.Default.IgnoreFiles = string.Join(";", _ignoredFiles);
 		}
 
 		private void frmMain_FormClosing(object sender, FormClosingEventArgs e)
@@ -540,7 +551,7 @@ namespace FeedBuilder
 				item.SubItems.Add(fileInfo.FileInfo.Length.ToString(CultureInfo.InvariantCulture));
 				item.SubItems.Add(fileInfo.FileInfo.LastWriteTime.ToString(CultureInfo.InvariantCulture));
 				item.SubItems.Add(fileInfo.Hash);
-				item.Checked = (!Settings.Default.IgnoreFiles.Contains(fileInfo.RelativeName));
+				item.Checked = (!_ignoredFiles.Contains(fileInfo.RelativeName));
 				item.Tag = fileInfo;
 				lstFiles.Items.Add(item);
 			}
