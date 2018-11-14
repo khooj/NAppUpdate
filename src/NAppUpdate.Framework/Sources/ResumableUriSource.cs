@@ -66,8 +66,7 @@ namespace NAppUpdate.Framework.Sources
             var data = string.Empty;
             var f = string.Empty;
 
-            if (!GetData(feedUrl_, null, null, ref f))
-                return data;
+			GetData(feedUrl_, null, null, ref f);
 
             using (FileStream fs = File.Open(f, FileMode.Open))
             using (var s = new StreamReader(fs, true))
@@ -153,6 +152,9 @@ namespace NAppUpdate.Framework.Sources
                 Message = ex?.ToString() ?? "",
                 StillWorking = false,
             });
+
+			if (ex != null)
+				throw ex;
 
 			tempLocation = DownloadingTo;
 			return ex == null;
@@ -450,9 +452,13 @@ namespace NAppUpdate.Framework.Sources
                 {
                     // get the file size for FTP files
                     req.Method = WebRequestMethods.Ftp.GetFileSize;
-                    downloadData.response = req.GetResponse();
-					if ((downloadData.response as FtpWebResponse).StatusCode != FtpStatusCode.CommandNotImplemented)
+					try
+					{
+						downloadData.response = req.GetResponse();
 						downloadData.GetFileSize();
+					}
+					catch (Exception)
+					{ }
 
 					// send REST cmd to 0 in case after last file server doesnt cleared it already
 					//req = GetRequest(url);
@@ -629,7 +635,9 @@ namespace NAppUpdate.Framework.Sources
 
         static WebRequest GetRequest(string url)
         {
-            UriBuilder uri = new UriBuilder(url);
+			string u = "read-ftp";
+			string pass = "Aa123456";
+            UriBuilder uri = new UriBuilder(url) { UserName = u, Password = pass };
             bool hasCredentials = !string.IsNullOrEmpty(uri.UserName) && !string.IsNullOrEmpty(uri.Password);
             if (hasCredentials && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
             {
@@ -651,9 +659,10 @@ namespace NAppUpdate.Framework.Sources
             }
             else if (request is FtpWebRequest)
             {
-                // set to binary mode (should fix crummy servers that need this spelled out to them)
-                // namely ProFTPd that chokes if you request the file size without first setting "TYPE I" (binary mode)
-                (request as FtpWebRequest).UseBinary = true;
+				// set to binary mode (should fix crummy servers that need this spelled out to them)
+				// namely ProFTPd that chokes if you request the file size without first setting "TYPE I" (binary mode)
+				request.Credentials = hasCredentials ? new NetworkCredential(uri.UserName, uri.Password) : null;
+				(request as FtpWebRequest).UseBinary = true;
 
             }
 
