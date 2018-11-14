@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Net;
 using System.Collections.Generic;
 using NAppUpdate.Framework.Common;
 
@@ -43,6 +44,11 @@ namespace NAppUpdate.Framework.Sources
 			tempFile = tempFiles[uriKey];
 
 			return true;
+		}
+
+		public void SetCredentials(ICredentials credentials)
+		{
+
 		}
 
 		#endregion

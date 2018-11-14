@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Text;
+using System.Net;
 using NAppUpdate.Framework.Common;
 
 namespace NAppUpdate.Framework.Sources
@@ -63,6 +64,11 @@ namespace NAppUpdate.Framework.Sources
 
 			File.Copy(basePath + filePath, tempLocation);
 			return true;
+		}
+
+		public void SetCredentials(ICredentials credentials)
+		{
+
 		}
 	}
 }

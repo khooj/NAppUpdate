@@ -4,6 +4,7 @@ using NAppUpdate.Framework.Sources;
 using NAppUpdate.Framework.FeedReaders;
 using System.IO;
 using System.Text;
+using System.Net;
 
 class Options
 {
@@ -11,6 +12,7 @@ class Options
 	public bool UpdateApplication { get; set; }
 	public bool EnableLogging { get; set; }
 	public bool Rollback { get; set; }
+	public ICredentials Credentials { get; set; }
 
 	public static string Usage()
 	{
@@ -22,6 +24,7 @@ class Options
 		b.Append("-u/--update\t\tStart update if available (false by default)\n");
 		b.Append("-l/--logging\t\tCreate update log in base directory (false by default)\n");
 		b.Append("-n/--no-rollback\t\tDo not rollback if update error occured (true by default)\n");
+		b.Append("-c/--credentials\t\tUse credentials for access to resource (example: \"anon:pass\")\n");
 		return b.ToString();
 	}
 }
@@ -71,6 +74,16 @@ namespace NAppUpdate.Updater.Standalone
 					case "--no-rollback":
 						opts.Rollback = false;
 						continue;
+					case "-c":
+					case "--credentials":
+						if (i + 1 >= args.Length)
+							throw new ArgumentException("Wrong arguments count");
+						var creds = args[i + 1].Split(':');
+						if (creds.Length != 2)
+							throw new ArgumentException("Wrong credentials format");
+						opts.Credentials = new NetworkCredential(creds[0], creds[1]);
+						++i;
+						continue;
 					default:
 						throw new ArgumentException("Unknown argument: " + opt);
 				}
@@ -108,6 +121,7 @@ namespace NAppUpdate.Updater.Standalone
 			upd.Config.TempFolder = Path.GetTempPath();
 			upd.UpdateFeedReader = new NauXmlFeedReader();
 			upd.UpdateSource = new ResumableUriSource(opts.FeedUri);
+			upd.UpdateCredentials = opts.Credentials;
 			upd.MaximumRetries = 10;
 
 			try

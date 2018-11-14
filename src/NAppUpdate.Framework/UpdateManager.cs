@@ -3,12 +3,14 @@ using System.Diagnostics;
 using System.IO;
 using System;
 using System.Threading;
+using System.Linq;
+using System.Net;
 using NAppUpdate.Framework.Common;
 using NAppUpdate.Framework.FeedReaders;
 using NAppUpdate.Framework.Sources;
 using NAppUpdate.Framework.Tasks;
 using NAppUpdate.Framework.Utils;
-using System.Linq;
+
 
 namespace NAppUpdate.Framework
 {
@@ -97,9 +99,31 @@ namespace NAppUpdate.Framework
 			}
 		}
 		public UpdateProcessState State { get; private set; }
-
-		public IUpdateSource UpdateSource { get; set; }
 		public IUpdateFeedReader UpdateFeedReader { get; set; }
+
+		private IUpdateSource _updateSource;
+		public IUpdateSource UpdateSource
+		{
+			get { return _updateSource; }
+			set
+			{
+				_updateSource = value;
+				if (_updateCredentials != null)
+					_updateSource.SetCredentials(_updateCredentials);
+			}
+		}
+
+		private ICredentials _updateCredentials;
+		public ICredentials UpdateCredentials
+		{
+			get { return _updateCredentials; }
+			set
+			{
+				if (_updateSource != null)
+					_updateSource.SetCredentials(value);
+				_updateCredentials = value;
+			}
+		}
 
 		public Logger Logger { get; private set; }
 		/// <summary>

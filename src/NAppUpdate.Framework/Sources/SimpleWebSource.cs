@@ -88,6 +88,11 @@ namespace NAppUpdate.Framework.Sources
 			return fd.DownloadToFile(tempLocation, onProgress);
 		}
 
+		public void SetCredentials(ICredentials credentials)
+		{
+
+		}
+
 		#endregion
 	}
 }

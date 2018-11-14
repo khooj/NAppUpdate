@@ -49,6 +49,7 @@ namespace NAppUpdate.Framework.Sources
         public static WebProxy CustomProxy;
         private Action<UpdateProgressInfo> _onProgress;
 		private string _tempDirectory;
+		private ICredentials _credentials;
 
         public ResumableUriSource(string feedUrl)
         {
@@ -160,6 +161,11 @@ namespace NAppUpdate.Framework.Sources
 			return ex == null;
         }
 
+		public void SetCredentials(ICredentials credentials)
+		{
+			_credentials = credentials;
+		}
+
         public static void SetupSaneDownloadOptions()
         {
             ServicePointManager.Expect100Continue = false;
@@ -183,7 +189,7 @@ namespace NAppUpdate.Framework.Sources
 
                 // get download details 
                 waitingForResponse = true;
-                data = DownloadData.Create(url_, _tempDirectory);
+                data = DownloadData.Create(url_, _tempDirectory, _credentials);
                 waitingForResponse = false;
 
                 //reset the adler
@@ -441,10 +447,10 @@ namespace NAppUpdate.Framework.Sources
 
         readonly static List<char> invalidFilenameChars = new List<char>(Path.GetInvalidFileNameChars());
 
-        public static DownloadData Create(string url, string destFolder)
+        public static DownloadData Create(string url, string destFolder, ICredentials creds)
         {
             DownloadData downloadData = new DownloadData();
-            WebRequest req = GetRequest(url);
+            WebRequest req = GetRequest(url, creds);
 
             try
             {
@@ -465,7 +471,7 @@ namespace NAppUpdate.Framework.Sources
 					//downloadData.response = req.GetResponse();
 
                     // new request for downloading the FTP file
-                    req = GetRequest(url);
+                    req = GetRequest(url, creds);
 					((FtpWebRequest)req).ContentOffset = 0;
 					downloadData.response = req.GetResponse();
                 }
@@ -566,7 +572,7 @@ namespace NAppUpdate.Framework.Sources
 
 					if (downloadData.response is HttpWebResponse)
 					{
-						req = GetRequest(url);
+						req = GetRequest(url, creds);
 						((HttpWebRequest)req).AddRange((int)downloadData.start);
 						downloadData.response = req.GetResponse();
 
@@ -579,7 +585,7 @@ namespace NAppUpdate.Framework.Sources
 					}
 					else
 					{
-						req = GetRequest(url);
+						req = GetRequest(url, creds);
 						((FtpWebRequest)req).ContentOffset = (int)downloadData.start;
 						downloadData.response = req.GetResponse();
 
@@ -633,12 +639,10 @@ namespace NAppUpdate.Framework.Sources
             }
         }
 
-        static WebRequest GetRequest(string url)
+        static WebRequest GetRequest(string url, ICredentials creds)
         {
-			string u = "read-ftp";
-			string pass = "Aa123456";
-            UriBuilder uri = new UriBuilder(url) { UserName = u, Password = pass };
-            bool hasCredentials = !string.IsNullOrEmpty(uri.UserName) && !string.IsNullOrEmpty(uri.Password);
+            UriBuilder uri = new UriBuilder(url);
+            bool hasCredentials = !string.IsNullOrEmpty(uri.UserName) && !string.IsNullOrEmpty(uri.Password) || creds != null;
             if (hasCredentials && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
             {
                 // get the URL without user/password
@@ -646,11 +650,26 @@ namespace NAppUpdate.Framework.Sources
             }
 
             WebRequest request = WebRequest.Create(url);
+			ICredentials tmp;
+			if (hasCredentials)
+			{
+				if (creds != null)
+					tmp = creds;
+				else
+					tmp = new NetworkCredential(uri.UserName, uri.Password);
+			}
+			else
+			{
+				if (request is HttpWebRequest)
+					tmp = CredentialCache.DefaultCredentials;
+				else
+					tmp = null;
+			}
+			if (tmp != null)
+				request.Credentials = tmp;
 
 			if (request is HttpWebRequest)
             {
-				request.Credentials = hasCredentials ? new NetworkCredential(uri.UserName, uri.Password) : CredentialCache.DefaultCredentials;
-
 				// Some servers explode if the user agent is missing.
 				// Some servers explode if the user agent is "non-standard" (e.g. "wyUpdate / " + VersionTools.FromExecutingAssembly())
 
@@ -661,9 +680,7 @@ namespace NAppUpdate.Framework.Sources
             {
 				// set to binary mode (should fix crummy servers that need this spelled out to them)
 				// namely ProFTPd that chokes if you request the file size without first setting "TYPE I" (binary mode)
-				request.Credentials = hasCredentials ? new NetworkCredential(uri.UserName, uri.Password) : null;
 				(request as FtpWebRequest).UseBinary = true;
-
             }
 
             return request;
