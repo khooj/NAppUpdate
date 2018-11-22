@@ -100,14 +100,7 @@ namespace NAppUpdate.Framework.Sources
             if (CustomProxy != null)
                 WebRequest.DefaultWebProxy = CustomProxy;
             else
-            {
-                IWebProxy proxy = WebRequest.GetSystemWebProxy();
-
-                if (proxy.Credentials == null)
-                    proxy.Credentials = CredentialCache.DefaultNetworkCredentials;
-
-                WebRequest.DefaultWebProxy = proxy;
-            }
+                WebRequest.DefaultWebProxy = null;
 
             // try each url in the list until one succeeds
             bool allFailedWaitingForResponse = false;
@@ -119,6 +112,10 @@ namespace NAppUpdate.Framework.Sources
                 BeginDownload();
                 ValidateDownload();
             }
+			catch (WebException e)
+			{
+				throw e;
+			}
             catch (Exception except)
             {
                 ex = except;
@@ -254,6 +251,10 @@ namespace NAppUpdate.Framework.Sources
             {
                 throw new Exception(string.Format("Could not parse the URL \"{0}\" - it's either malformed or is an unknown protocol.", url_), e);
             }
+			catch (WebException e)
+			{
+				throw e;
+			}
             catch (Exception e)
             {
                 if (string.IsNullOrEmpty(DownloadingTo))
@@ -458,13 +459,8 @@ namespace NAppUpdate.Framework.Sources
                 {
                     // get the file size for FTP files
                     req.Method = WebRequestMethods.Ftp.GetFileSize;
-					try
-					{
-						downloadData.response = req.GetResponse();
-						downloadData.GetFileSize();
-					}
-					catch (Exception)
-					{ }
+					downloadData.response = req.GetResponse();
+					downloadData.GetFileSize();
 
 					// send REST cmd to 0 in case after last file server doesnt cleared it already
 					//req = GetRequest(url);
@@ -481,6 +477,10 @@ namespace NAppUpdate.Framework.Sources
                     downloadData.GetFileSize();
                 }
             }
+			catch (WebException e)
+			{
+				throw e;
+			}
             catch (Exception e)
             {
                 throw new Exception(string.Format("Error downloading \"{0}\": {1}", url, e.Message), e);
@@ -650,6 +650,7 @@ namespace NAppUpdate.Framework.Sources
             }
 
             WebRequest request = WebRequest.Create(url);
+			request.Timeout = 5 * 1000; //msec
 			ICredentials tmp;
 			if (hasCredentials)
 			{

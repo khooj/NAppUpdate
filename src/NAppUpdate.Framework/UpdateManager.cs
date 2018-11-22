@@ -212,10 +212,22 @@ namespace NAppUpdate.Framework
 						try
 						{
 							tasks = UpdateFeedReader.Read(UpdateSource.GetUpdatesFeed());
+							break;
 						}
 						catch (Exception ex)
 						{
 							Logger.Log(ex);
+
+							if (ex is WebException)
+							{
+								var e = ex as WebException;
+								if (e.Status == WebExceptionStatus.Timeout ||
+									e.Status == WebExceptionStatus.ConnectFailure ||
+									e.Status == WebExceptionStatus.NameResolutionFailure)
+								{
+									throw new UpdateProcessFailedException("Failed to retrieve feed: " + ex.ToString());
+								}
+							}
 
 							if (currentRetry == MaximumRetries)
 							{
@@ -223,9 +235,7 @@ namespace NAppUpdate.Framework
 							}
 
 							Thread.Sleep(RetriesTimeout);
-							continue;
 						}
-						break;
 					}
 
 					foreach (var t in tasks)
