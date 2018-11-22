@@ -122,7 +122,6 @@ namespace NAppUpdate.Updater.Standalone
 			upd.UpdateFeedReader = new NauXmlFeedReader();
 			upd.UpdateSource = new ResumableUriSource(opts.FeedUri);
 			upd.UpdateCredentials = opts.Credentials;
-			upd.MaximumRetries = 10;
 
 			try
 			{

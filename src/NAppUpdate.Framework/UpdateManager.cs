@@ -27,7 +27,6 @@ namespace NAppUpdate.Framework
 		private UpdateManager()
 		{
 			IsWorking = false;
-			MaximumRetries = 1;
 			RetriesTimeout = TimeSpan.FromSeconds(1);
 			State = UpdateProcessState.NotChecked;
 			UpdatesToApply = new List<IUpdateTask>();
@@ -138,12 +137,12 @@ namespace NAppUpdate.Framework
 			set
 			{
 				if (value <= 0)
-					maximumRetries = 1;
+					maximumRetries = 10;
 				else
 					maximumRetries = value;
 			}
 		}
-		private int maximumRetries = 1;
+		private int maximumRetries = 10;
 		/// <summary>
 		/// Timeout between retries
 		/// </summary>
