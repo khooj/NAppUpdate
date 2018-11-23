@@ -31,10 +31,8 @@ namespace NAppUpdate.Framework.Sources
         string downloadSpeed;
 
         //download site and destination
-        string url_;
-        string feedUrl_;
-
-        bool waitingForResponse;
+        private string url_;
+		public string FeedUrl { get; private set; }
 
         // Adler verification
         public long Adler32;
@@ -53,7 +51,7 @@ namespace NAppUpdate.Framework.Sources
 
         public ResumableUriSource(string feedUrl)
         {
-            feedUrl_ = feedUrl;
+            FeedUrl = feedUrl;
 			_tempDirectory = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
 		}
 
@@ -67,7 +65,7 @@ namespace NAppUpdate.Framework.Sources
             var data = string.Empty;
             var f = string.Empty;
 
-			GetData(feedUrl_, null, null, ref f);
+			GetData(FeedUrl, null, null, ref f);
 
             using (FileStream fs = File.Open(f, FileMode.Open))
             using (var s = new StreamReader(fs, true))
@@ -78,7 +76,27 @@ namespace NAppUpdate.Framework.Sources
             return data;
         }
 
-        public bool GetData(string url, string baseUrl, Action<UpdateProgressInfo> onProgress, ref string tempLocation)
+		public bool GetData(string url, string baseUrl, Action<UpdateProgressInfo> onProgress, ref string tempLocation)
+		{
+			try
+			{
+				return _GetData(url, baseUrl, onProgress, ref tempLocation);
+			}
+			catch (WebException)
+			{
+				var origUrl = new UriBuilder(url);
+				if (origUrl.Host == url)
+				{
+					origUrl.Host = string.Empty;
+					origUrl.Path = url;
+				}
+				var feedUrl = new Uri(FeedUrl);
+				feedUrl = new Uri(feedUrl, origUrl.Path);
+				return _GetData(feedUrl.ToString(), null, onProgress, ref tempLocation);
+			}
+		}
+
+        private bool _GetData(string url, string baseUrl, Action<UpdateProgressInfo> onProgress, ref string tempLocation)
         {
             if (string.IsNullOrEmpty(url))
             {
@@ -91,9 +109,28 @@ namespace NAppUpdate.Framework.Sources
                 return false;
             }
 
+			var origUrl = new UriBuilder(url);
 			if (!string.IsNullOrEmpty(baseUrl))
 			{
-				url = baseUrl + "/" + url;
+				if (origUrl.Host == url) // url == filename
+				{
+					origUrl.Host = string.Empty;
+					origUrl.Path = url;
+				}
+
+				if (string.IsNullOrEmpty(origUrl.Host))
+				{
+					var baseUri = new UriBuilder(baseUrl);
+					baseUri.Path = baseUri.Path + "/" + origUrl.Path;
+					url = baseUri.ToString();
+				}
+			}
+
+			if (origUrl.Host == url)
+			{
+				//we dont have baseUrl and url itself is not full enough
+				//so throw exception cause GetData() can handle it case
+				throw new WebException("Empty url");
 			}
          
             // use the custom proxy if provided
@@ -102,8 +139,6 @@ namespace NAppUpdate.Framework.Sources
             else
                 WebRequest.DefaultWebProxy = null;
 
-            // try each url in the list until one succeeds
-            bool allFailedWaitingForResponse = false;
             Exception ex = null;
             _onProgress = onProgress;
             try
@@ -119,33 +154,9 @@ namespace NAppUpdate.Framework.Sources
             catch (Exception except)
             {
                 ex = except;
-                allFailedWaitingForResponse = true;
             }
 
-            /*
-             If all the sites failed before a response was received then either the 
-             internet connection is shot, or the Proxy is shot. Either way it can't 
-             hurt to try downloading without the proxy:
-            */
-            if (allFailedWaitingForResponse && WebRequest.DefaultWebProxy != null)
-            {
-                // try the sites again without a proxy
-                WebRequest.DefaultWebProxy = null;
-
-                try
-                {
-                    url_ = url;
-                    BeginDownload();
-                    ValidateDownload();
-					ex = null;
-                }
-                catch (Exception except)
-                {
-                    ex = except;
-                }
-            }
-
-            onProgress?.Invoke(new DownloadProgressInfo
+            _onProgress?.Invoke(new DownloadProgressInfo
             {
                 Message = ex?.ToString() ?? "",
                 StillWorking = false,
@@ -184,10 +195,7 @@ namespace NAppUpdate.Framework.Sources
                     Directory.CreateDirectory(_tempDirectory);
                 }
 
-                // get download details 
-                waitingForResponse = true;
                 data = DownloadData.Create(url_, _tempDirectory, _credentials);
-                waitingForResponse = false;
 
                 //reset the adler
                 downloadedAdler32.Reset();
