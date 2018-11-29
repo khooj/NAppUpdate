@@ -6,11 +6,11 @@ using System.Runtime.InteropServices;
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
 [assembly: AssemblyTitle("NAppUpdate.Updater.Standalone")]
-[assembly: AssemblyDescription("")]
+[assembly: AssemblyDescription("Standalone updater")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("")]
+[assembly: AssemblyCompany("ITBuildGroup")]
 [assembly: AssemblyProduct("NAppUpdate.Updater.Standalone")]
-[assembly: AssemblyCopyright("Copyright ©  2018")]
+[assembly: AssemblyCopyright("ITBuildGroup")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
