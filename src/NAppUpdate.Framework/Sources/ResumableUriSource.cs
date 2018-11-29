@@ -78,21 +78,15 @@ namespace NAppUpdate.Framework.Sources
 
 		public bool GetData(string url, string baseUrl, Action<UpdateProgressInfo> onProgress, ref string tempLocation)
 		{
+			baseUrl += "/";
 			try
 			{
 				return _GetData(url, baseUrl, onProgress, ref tempLocation);
 			}
 			catch (WebException)
 			{
-				var origUrl = new UriBuilder(url);
-				if (origUrl.Host == url)
-				{
-					origUrl.Host = string.Empty;
-					origUrl.Path = url;
-				}
-				var feedUrl = new Uri(FeedUrl);
-				feedUrl = new Uri(feedUrl, origUrl.Path);
-				return _GetData(feedUrl.ToString(), null, onProgress, ref tempLocation);
+				url = SanitizeUrl(url, FeedUrl);
+				return _GetData(url, null, onProgress, ref tempLocation);
 			}
 		}
 
@@ -109,30 +103,8 @@ namespace NAppUpdate.Framework.Sources
                 return false;
             }
 
-			var origUrl = new UriBuilder(url);
-			if (!string.IsNullOrEmpty(baseUrl))
-			{
-				if (origUrl.Host == url) // url == filename
-				{
-					origUrl.Host = string.Empty;
-					origUrl.Path = url;
-				}
+			url = SanitizeUrl(url, baseUrl);
 
-				if (string.IsNullOrEmpty(origUrl.Host))
-				{
-					var baseUri = new UriBuilder(baseUrl);
-					baseUri.Path = baseUri.Path + "/" + origUrl.Path;
-					url = baseUri.ToString();
-				}
-			}
-
-			if (origUrl.Host == url)
-			{
-				//we dont have baseUrl and url itself is not full enough
-				//so throw exception cause GetData() can handle it case
-				throw new WebException("Empty url");
-			}
-         
             // use the custom proxy if provided
             if (CustomProxy != null)
                 WebRequest.DefaultWebProxy = CustomProxy;
@@ -168,6 +140,22 @@ namespace NAppUpdate.Framework.Sources
 			tempLocation = DownloadingTo;
 			return ex == null;
         }
+
+		private string SanitizeUrl(string url, string baseUrl)
+		{
+			Uri origUrl = null;
+			if (!Uri.TryCreate(url, UriKind.Absolute, out origUrl))
+			{
+				// probably we have filename in url, trying to use baseUrl
+				Uri _baseUrl = null;
+				if (!Uri.TryCreate(baseUrl, UriKind.Absolute, out _baseUrl))
+					throw new SystemException("Provided incorrect url and base url: " + url + ";" + baseUrl);
+				if (!Uri.TryCreate(_baseUrl, url, out origUrl))
+					throw new SystemException("Cannot concat url and base url: " + url + ";" + baseUrl);
+			}
+
+			return origUrl.ToString();
+		}
 
 		public void SetCredentials(ICredentials credentials)
 		{
