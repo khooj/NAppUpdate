@@ -11,7 +11,7 @@ using FeedBuilder.Properties;
 
 namespace FeedBuilder
 {
-	public class FeedBuilderSettingsProvider : SettingsProvider, IApplicationSettingsProvider
+	public class FeedBuilderSettingsProviders : SettingsProvider, IApplicationSettingsProvider
 	{
 		//XML Root Node
 		private const string SETTINGSROOT = "Settings";
