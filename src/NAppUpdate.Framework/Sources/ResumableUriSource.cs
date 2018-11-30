@@ -78,15 +78,13 @@ namespace NAppUpdate.Framework.Sources
 
 		public bool GetData(string url, string baseUrl, Action<UpdateProgressInfo> onProgress, ref string tempLocation)
 		{
-			baseUrl += "/";
 			try
 			{
 				return _GetData(url, baseUrl, onProgress, ref tempLocation);
 			}
 			catch (WebException)
 			{
-				url = SanitizeUrl(url, FeedUrl);
-				return _GetData(url, null, onProgress, ref tempLocation);
+				return _GetData(url, FeedUrl, onProgress, ref tempLocation);
 			}
 		}
 
@@ -103,7 +101,17 @@ namespace NAppUpdate.Framework.Sources
                 return false;
             }
 
-			url = SanitizeUrl(url, baseUrl);
+			try
+			{
+				url = SanitizeUrl(url, baseUrl);
+			}
+			catch (SystemException)
+			{
+				//probably something gone wrong, trying to use feedUrl instead
+				//see GetData()
+				throw new WebException();
+			}
+			
 
             // use the custom proxy if provided
             if (CustomProxy != null)
@@ -143,15 +151,17 @@ namespace NAppUpdate.Framework.Sources
 
 		private string SanitizeUrl(string url, string baseUrl)
 		{
+			if (baseUrl != null && !baseUrl.EndsWith("/"))
+				baseUrl = baseUrl?.Insert(baseUrl.Length, "/");
 			Uri origUrl = null;
 			if (!Uri.TryCreate(url, UriKind.Absolute, out origUrl))
 			{
 				// probably we have filename in url, trying to use baseUrl
 				Uri _baseUrl = null;
 				if (!Uri.TryCreate(baseUrl, UriKind.Absolute, out _baseUrl))
-					throw new SystemException("Provided incorrect url and base url: " + url + ";" + baseUrl);
+					throw new SystemException("Provided incorrect url and base url: " + url + "; " + baseUrl);
 				if (!Uri.TryCreate(_baseUrl, url, out origUrl))
-					throw new SystemException("Cannot concat url and base url: " + url + ";" + baseUrl);
+					throw new SystemException("Cannot concat url and base url: " + url + "; " + baseUrl);
 			}
 
 			return origUrl.ToString();
