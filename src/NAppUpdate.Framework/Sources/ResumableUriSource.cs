@@ -153,7 +153,15 @@ namespace NAppUpdate.Framework.Sources
 		private string SanitizeUrl(string url, string baseUrl)
 		{
 			if (baseUrl != null && !baseUrl.EndsWith("/"))
-				baseUrl = baseUrl?.Insert(baseUrl.Length, "/");
+			{
+				// assume that files always ends with extension
+				// so we can reliable cut out upper directory
+				int idx = baseUrl.LastIndexOf('/');
+				if (baseUrl.Substring(idx).Contains("."))
+					baseUrl = baseUrl.Substring(0, idx + 1);
+				else
+					baseUrl = baseUrl?.Insert(baseUrl.Length, "/");
+			}
 			Uri origUrl = null;
 			if (!Uri.TryCreate(url, UriKind.Absolute, out origUrl))
 			{
