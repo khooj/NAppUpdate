@@ -75,7 +75,7 @@ namespace FeedBuilder
 
 		void CheckSecurity(string folderPath)
 		{
-			new FileIOPermission(FileIOPermissionAccess.PathDiscovery, Path.Combine(folderPath, ".")).Demand();
+			new FileIOPermission(FileIOPermissionAccess.PathDiscovery | FileIOPermissionAccess.Read, Path.Combine(folderPath, ".")).Demand();
 		}
 
 		private IEnumerable<string> ProcessSubdirectories(string folderPath)

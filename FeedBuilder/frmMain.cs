@@ -8,12 +8,46 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using System.Windows.Forms;
 using System.Xml;
-using FeedBuilder.Properties;
+using Newtonsoft.Json;
 
 namespace FeedBuilder
 {
 	public partial class frmMain : Form
 	{
+		class Options
+		{
+			public string MachineName { get; set; } = string.Empty;
+			public string BaseURL { get; set; } = string.Empty;
+			public bool CompareVersion { get; set; } = false;
+			public string OutputFolder { get; set; } = string.Empty;
+			public string AddExtension { get; set; } = string.Empty;
+			public bool CopyFiles { get; set; } = false;
+			public bool CompareHash { get; set; } = false;
+			public bool CompareSize { get; set; } = false;
+			public bool CleanUp { get; set; } = false;
+			public bool CompareDate { get; set; } = false;
+			public bool IgnoreDebugSymbols { get; set; } = false;
+			public IList<string> IgnoreFiles { get; set; }
+			public string FeedXML { get; set; } = string.Empty;
+			public bool IgnoreVsHosting { get; set; } = false;
+
+			public static string Serialize(Options opts)
+			{
+				string val = JsonConvert.SerializeObject(opts, new JsonSerializerSettings
+				{
+					DefaultValueHandling = DefaultValueHandling.Ignore,
+					Formatting = Newtonsoft.Json.Formatting.Indented
+				});
+				return val;
+			}
+
+			public static Options Deserialize(string json)
+			{
+				Options opts = JsonConvert.DeserializeObject<Options>(json);
+				return opts == null ? new Options() : opts;
+			}
+		}
+
 		public frmMain()
 		{
 			InitializeComponent();
@@ -33,7 +67,7 @@ namespace FeedBuilder
 
 		public string FileName { get; set; }
 		public bool ShowGui { get; set; }
-		private List<string> _ignoredFiles { get; set; }
+		private Options _options;
 
 		#endregion
 
@@ -42,6 +76,7 @@ namespace FeedBuilder
 		private void frmMain_Load(Object sender, EventArgs e)
 		{
 			Visible = false;
+			ResetJson();
 			InitializeFormSettings();
 			string[] args = Environment.GetCommandLineArgs();
 			// The first arg is the path to ourself
@@ -67,8 +102,7 @@ namespace FeedBuilder
 			{
 				if (File.Exists(FileName))
 				{
-					FeedBuilderSettingsProvider p = new FeedBuilderSettingsProvider();
-					p.LoadFrom(FileName);
+					LoadJson(FileName);
 					InitializeFormSettings();
 				}
 				else
@@ -85,37 +119,48 @@ namespace FeedBuilder
 
 		private void InitializeFormSettings()
 		{
-			if (string.IsNullOrEmpty(Settings.Default.OutputFolder))
+			if (string.IsNullOrEmpty(_options.OutputFolder))
 			{
 				txtOutputFolder.Text = string.Empty;
 			}
 			else
 			{
-				string path = GetFullDirectoryPath(Settings.Default.OutputFolder);
-				txtOutputFolder.Text = Directory.Exists(path) ? Settings.Default.OutputFolder : string.Empty;
+				string path = GetFullDirectoryPath(_options.OutputFolder);
+				txtOutputFolder.Text = Directory.Exists(path) ? _options.OutputFolder : string.Empty;
 			}
 
-			txtFeedXML.Text = string.IsNullOrEmpty(Settings.Default.FeedXML) ? string.Empty : Settings.Default.FeedXML;
-			txtBaseURL.Text = string.IsNullOrEmpty(Settings.Default.BaseURL) ? string.Empty : Settings.Default.BaseURL;
+			if (_options.IgnoreFiles == null)
+				_options.IgnoreFiles = new List<string>();
 
-			chkVersion.Checked = Settings.Default.CompareVersion;
-			chkSize.Checked = Settings.Default.CompareSize;
-			chkDate.Checked = Settings.Default.CompareDate;
-			chkHash.Checked = Settings.Default.CompareHash;
+			txtFeedXML.Text = string.IsNullOrEmpty(_options.FeedXML) ? string.Empty : _options.FeedXML;
+			txtBaseURL.Text = string.IsNullOrEmpty(_options.BaseURL) ? string.Empty : _options.BaseURL;
 
-			chkIgnoreSymbols.Checked = Settings.Default.IgnoreDebugSymbols;
-			chkIgnoreVsHost.Checked = Settings.Default.IgnoreVsHosting;
-			chkCopyFiles.Checked = Settings.Default.CopyFiles;
-			chkCleanUp.Checked = Settings.Default.CleanUp;
-            txtAddExtension.Text = Settings.Default.AddExtension;
+			chkVersion.Checked = _options.CompareVersion;
+			chkSize.Checked = _options.CompareSize;
+			chkDate.Checked = _options.CompareDate;
+			chkHash.Checked = _options.CompareHash;
 
-			if (_ignoredFiles == null)
-				_ignoredFiles = new List<string>();
+			chkIgnoreSymbols.Checked = _options.IgnoreDebugSymbols;
+			chkIgnoreVsHost.Checked = _options.IgnoreVsHosting;
+			chkCopyFiles.Checked = _options.CopyFiles;
+			chkCleanUp.Checked = _options.CleanUp;
+            txtAddExtension.Text = _options.AddExtension;
 
-			if (!string.IsNullOrEmpty(Settings.Default.IgnoreFiles))
-				_ignoredFiles.AddRange(Settings.Default.IgnoreFiles.Split(';'));
+			// fix access denied error at startup and console usage
+			try
+			{
+				ReadFiles();
+			}
+			catch (UnauthorizedAccessException e)
+			{
+				//TODO: move out exception check
+				//_options.Reset();
+				// form should be empty now
+				//InitializeFormSettings(); 
+				MessageBox.Show("MOVE OUT EXCEPTION CHECK!!!");
+				throw;
+			}
 
-			ReadFiles();
 			UpdateTitle();
 		}
 
@@ -127,40 +172,39 @@ namespace FeedBuilder
 
 		private void SaveFormSettings()
 		{
-			if (!string.IsNullOrEmpty(txtOutputFolder.Text.Trim()) && Directory.Exists(txtOutputFolder.Text.Trim())) Settings.Default.OutputFolder = txtOutputFolder.Text.Trim();
+			if (!string.IsNullOrEmpty(txtOutputFolder.Text.Trim()) && Directory.Exists(txtOutputFolder.Text.Trim())) _options.OutputFolder = txtOutputFolder.Text.Trim();
 			// ReSharper disable AssignNullToNotNullAttribute
-			if (!string.IsNullOrEmpty(txtFeedXML.Text.Trim()) && Directory.Exists(Path.GetDirectoryName(txtFeedXML.Text.Trim()))) Settings.Default.FeedXML = txtFeedXML.Text.Trim();
+			if (!string.IsNullOrEmpty(txtFeedXML.Text.Trim()) && Directory.Exists(Path.GetDirectoryName(txtFeedXML.Text.Trim()))) _options.FeedXML = txtFeedXML.Text.Trim();
 			// ReSharper restore AssignNullToNotNullAttribute
-			if (!string.IsNullOrEmpty(txtBaseURL.Text.Trim())) Settings.Default.BaseURL = txtBaseURL.Text.Trim();
+			if (!string.IsNullOrEmpty(txtBaseURL.Text.Trim())) _options.BaseURL = txtBaseURL.Text.Trim();
 
-            if (!string.IsNullOrEmpty(txtAddExtension.Text.Trim())) Settings.Default.AddExtension = txtAddExtension.Text.Trim();
+            if (!string.IsNullOrEmpty(txtAddExtension.Text.Trim())) _options.AddExtension = txtAddExtension.Text.Trim();
 
-            Settings.Default.CompareVersion = chkVersion.Checked;
-			Settings.Default.CompareSize = chkSize.Checked;
-			Settings.Default.CompareDate = chkDate.Checked;
-			Settings.Default.CompareHash = chkHash.Checked;
+			if (_options.IgnoreFiles == null)
+				_options.IgnoreFiles = new List<string>();
+			_options.IgnoreFiles.Clear();
 
-			Settings.Default.IgnoreDebugSymbols = chkIgnoreSymbols.Checked;
-			Settings.Default.IgnoreVsHosting = chkIgnoreVsHost.Checked;
-			Settings.Default.CopyFiles = chkCopyFiles.Checked;
-			Settings.Default.CleanUp = chkCleanUp.Checked;
+			_options.CompareVersion = chkVersion.Checked;
+			_options.CompareSize = chkSize.Checked;
+			_options.CompareDate = chkDate.Checked;
+			_options.CompareHash = chkHash.Checked;
 
-			if (_ignoredFiles == null)
-				_ignoredFiles = new List<string>();
-			_ignoredFiles.Clear();
+			_options.IgnoreDebugSymbols = chkIgnoreSymbols.Checked;
+			_options.IgnoreVsHosting = chkIgnoreVsHost.Checked;
+			_options.CopyFiles = chkCopyFiles.Checked;
+			_options.CleanUp = chkCleanUp.Checked;
 
 			foreach (ListViewItem thisItem in lstFiles.Items)
 			{
-				if (!thisItem.Checked) _ignoredFiles.Add(thisItem.Text);
+				if (!thisItem.Checked)
+					_options.IgnoreFiles.Add(thisItem.Text);
 			}
-
-			Settings.Default.IgnoreFiles = string.Join(";", _ignoredFiles);
 		}
 
 		private void frmMain_FormClosing(object sender, FormClosingEventArgs e)
 		{
 			SaveFormSettings();
-			Settings.Default.Save();
+			SaveJson(FileName);
 		}
 
 		#endregion
@@ -179,7 +223,7 @@ namespace FeedBuilder
 
 		private void btnNew_Click(Object sender, EventArgs e)
 		{
-			Settings.Default.Reset();
+			ResetJson();
 			InitializeFormSettings();
 		}
 
@@ -198,8 +242,7 @@ namespace FeedBuilder
 			else dlg = _openDialog;
 			dlg.Filter = DialogFilter;
 			if (dlg.ShowDialog() != DialogResult.OK) return;
-			FeedBuilderSettingsProvider p = new FeedBuilderSettingsProvider();
-			p.LoadFrom(dlg.FileName);
+			LoadJson(dlg.FileName);
 			FileName = dlg.FileName;
 			InitializeFormSettings();
 		}
@@ -228,7 +271,16 @@ namespace FeedBuilder
 			fbdOutputFolder.SelectedPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
 			if (fbdOutputFolder.ShowDialog(this) != DialogResult.OK) return;
 			txtOutputFolder.Text = fbdOutputFolder.SelectedPath;
-			ReadFiles();
+			try
+			{
+				ReadFiles();
+			}
+			catch (UnauthorizedAccessException ex)
+			{
+				lstFiles.Items.Clear();
+				lstFiles.RedrawItems(0, lstFiles.Items.Count - 1, false);
+				MessageBox.Show("Cannot open selected folder.");
+			}
 		}
 
 		private void cmdFeedXML_Click(Object sender, EventArgs e)
@@ -251,6 +303,54 @@ namespace FeedBuilder
 		#endregion
 
 		#region " Helper Methods "
+
+		private void SaveJson(string filePath)
+		{
+			try
+			{
+				string val = Options.Serialize(_options);
+				using (FileStream fs = File.Open(filePath, FileMode.Create))
+				using (StreamWriter sw = new StreamWriter(fs))
+					sw.Write(val);
+			}
+			catch (JsonException ex)
+			{
+				MessageBox.Show("Cannot create json: " + ex.Message, "JSON error");
+				return;
+			}
+			catch (SystemException ex)
+			{
+				MessageBox.Show("Cannot save file: " + ex.Message, "Error");
+				return;
+			}
+		}
+
+		private void LoadJson(string filePath)
+		{
+			try
+			{
+				string val = string.Empty;
+				using (FileStream fs = File.Open(filePath, FileMode.Open))
+				using (StreamReader sr = new StreamReader(fs))
+					val = sr.ReadToEnd();
+				_options = Options.Deserialize(val);
+			}
+			catch (JsonException ex)
+			{
+				MessageBox.Show("Cannot parse json: " + ex.Message, "JSON error");
+				return;
+			}
+			catch (SystemException ex)
+			{
+				MessageBox.Show("Cannot load file: " + ex.Message, "Error");
+				return;
+			}
+		}
+
+		private void ResetJson()
+		{
+			_options = Options.Deserialize(string.Empty);
+		}
 
 		private void Build()
 		{
@@ -551,7 +651,7 @@ namespace FeedBuilder
 				item.SubItems.Add(fileInfo.FileInfo.Length.ToString(CultureInfo.InvariantCulture));
 				item.SubItems.Add(fileInfo.FileInfo.LastWriteTime.ToString(CultureInfo.InvariantCulture));
 				item.SubItems.Add(fileInfo.Hash);
-				item.Checked = (!_ignoredFiles.Contains(fileInfo.RelativeName));
+				item.Checked = (!_options.IgnoreFiles.Contains(fileInfo.RelativeName));
 				item.Tag = fileInfo;
 				lstFiles.Items.Add(item);
 			}
@@ -602,15 +702,13 @@ namespace FeedBuilder
 				DialogResult result = dlg.ShowDialog();
 				if (result == DialogResult.OK)
 				{
-					FeedBuilderSettingsProvider p = new FeedBuilderSettingsProvider();
-					p.SaveAs(dlg.FileName);
+					SaveJson(dlg.FileName);
 					FileName = dlg.FileName;
 				}
 			}
 			else
 			{
-				FeedBuilderSettingsProvider p = new FeedBuilderSettingsProvider();
-				p.SaveAs(FileName);
+				SaveJson(FileName);
 			}
 			UpdateTitle();
 		}
@@ -631,8 +729,7 @@ namespace FeedBuilder
 			try
 			{
 				string fileName = files[0];
-				FeedBuilderSettingsProvider p = new FeedBuilderSettingsProvider();
-				p.LoadFrom(fileName);
+				LoadJson(fileName);
 				FileName = fileName;
 				InitializeFormSettings();
 			}
