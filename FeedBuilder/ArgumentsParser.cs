@@ -12,6 +12,7 @@ namespace FeedBuilder
 		public string FileName { get; set; }
 		public bool ShowGui { get; set; }
 		public bool Build { get; set; }
+		public bool Example { get; set; }
 		public bool OpenOutputsFolder { get; set; }
 
 		public ArgumentsParser(IEnumerable<string> args)
@@ -36,6 +37,11 @@ namespace FeedBuilder
 					OpenOutputsFolder = true;
 					HasArgs = true;
 				}
+				else if (arg == "example")
+				{
+					Example = true;
+					HasArgs = true;
+				}
 				else if (IsValidFileName(thisArg))
 				{
 					// keep the same character casing as we were originally provided
@@ -50,7 +56,7 @@ namespace FeedBuilder
 		// we say the filename is valid
 		private bool IsValidFileName(string filename)
 		{
-			if (File.Exists(filename)) return true;
+			if (File.Exists(filename) || Example) return true;
 			try
 			{
 				// the URI test... filter out things that aren't even trying to look like filenames

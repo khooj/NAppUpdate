@@ -14,6 +14,14 @@ namespace FeedBuilder
 {
 	public partial class frmMain : Form
 	{
+		class StartStopOption
+		{
+			public string Operation { get; set; }
+			public string When { get; set; }
+			public string Target { get; set; }
+			public string Executable { get; set; }
+		}
+
 		class Options
 		{
 			public string MachineName { get; set; } = string.Empty;
@@ -28,6 +36,7 @@ namespace FeedBuilder
 			public bool CompareDate { get; set; } = false;
 			public bool IgnoreDebugSymbols { get; set; } = false;
 			public IList<string> IgnoreFiles { get; set; }
+			public IList<StartStopOption> LaunchFiles { get; set; }
 			public string FeedXML { get; set; } = string.Empty;
 			public bool IgnoreVsHosting { get; set; } = false;
 
@@ -98,6 +107,12 @@ namespace FeedBuilder
 			}
 
 			FileName = _argParser.FileName;
+			if (_argParser.Example)
+			{
+				Example();
+				Close();
+			}
+
 			if (!string.IsNullOrEmpty(FileName))
 			{
 				if (File.Exists(FileName))
@@ -131,6 +146,9 @@ namespace FeedBuilder
 
 			if (_options.IgnoreFiles == null)
 				_options.IgnoreFiles = new List<string>();
+
+			if (_options.LaunchFiles == null)
+				_options.LaunchFiles = new List<StartStopOption>();
 
 			txtFeedXML.Text = string.IsNullOrEmpty(_options.FeedXML) ? string.Empty : _options.FeedXML;
 			txtBaseURL.Text = string.IsNullOrEmpty(_options.BaseURL) ? string.Empty : _options.BaseURL;
@@ -183,6 +201,9 @@ namespace FeedBuilder
 			if (_options.IgnoreFiles == null)
 				_options.IgnoreFiles = new List<string>();
 			_options.IgnoreFiles.Clear();
+
+			if (_options.LaunchFiles == null)
+				_options.LaunchFiles = new List<StartStopOption>();
 
 			_options.CompareVersion = chkVersion.Checked;
 			_options.CompareSize = chkSize.Checked;
@@ -508,6 +529,14 @@ namespace FeedBuilder
 			if (itemsSkipped > 0) Console.WriteLine("{0,5} items skipped", itemsSkipped);
 			if (itemsFailed > 0) Console.WriteLine("{0,5} items failed", itemsFailed);
 			if (itemsMissingConditions > 0) Console.WriteLine("{0,5} items without any conditions", itemsMissingConditions);
+		}
+
+		private void Example()
+		{
+			ResetJson();
+			_options.IgnoreFiles = new List<string>();
+			_options.LaunchFiles = new List<StartStopOption>() { new StartStopOption { Executable = "start.bat", Operation = "start", When = "before", Target = "start.bat" } };
+			SaveJson(FileName);
 		}
 
 		private bool CopyFile(string sourceFile, string destFile)
