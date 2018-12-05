@@ -400,11 +400,11 @@ namespace FeedBuilder
 
 			XmlElement tasks = doc.CreateElement("Tasks");
 
-			Dictionary<string, StartStopOption> startStopProcesses = null;
+			Dictionary<string, IList<StartStopOption>> startStopProcesses = null;
 			List<StartStopOption> atEnd = null;
 			if (_options.LaunchFiles != null)
 			{
-				startStopProcesses = new Dictionary<string, StartStopOption>();
+				startStopProcesses = new Dictionary<string, IList<StartStopOption>>();
 				
 				foreach (StartStopOption s in _options.LaunchFiles)
 				{
@@ -422,7 +422,10 @@ namespace FeedBuilder
 						continue;
 					}
 
-					startStopProcesses.Add(s.Target, s);
+					if (startStopProcesses.ContainsKey(s.Target))
+						startStopProcesses[s.Target].Add(s);
+					else
+						startStopProcesses.Add(s.Target, new List<StartStopOption>() { s });
 				}
 			}
 
@@ -453,9 +456,9 @@ namespace FeedBuilder
 				if (thisItem.Checked)
 				{
 					var fileInfoEx = (FileInfoEx)thisItem.Tag;
-					StartStopOption startStopOpt = null;
+					IList<StartStopOption> startStopOptions = null;
 					if (startStopProcesses != null && startStopProcesses.ContainsKey(fileInfoEx.RelativeName))
-						startStopOpt = startStopProcesses[fileInfoEx.RelativeName];
+						startStopOptions = startStopProcesses[fileInfoEx.RelativeName];
 
 					XmlElement task = doc.CreateElement("FileUpdateTask");
 					task.SetAttribute("localPath", fileInfoEx.RelativeName);
@@ -521,13 +524,17 @@ namespace FeedBuilder
 					if (conds.ChildNodes.Count == 0) itemsMissingConditions++;
 					task.AppendChild(conds);
 
-					if (startStopOpt != null && startStopOpt.When == "before")
-						tasks.AppendChild(CreateXmlStartStopTask(startStopOpt, doc));
+					if (startStopOptions != null)
+						foreach (StartStopOption s in startStopOptions)
+							if (s.When == "before")
+								tasks.AppendChild(CreateXmlStartStopTask(s, doc));
 
 					tasks.AppendChild(task);
 
-					if (startStopOpt != null && startStopOpt.When == "after")
-						tasks.AppendChild(CreateXmlStartStopTask(startStopOpt, doc));
+					if (startStopOptions != null)
+						foreach (StartStopOption s in startStopOptions)
+							if (s.When == "after")
+								tasks.AppendChild(CreateXmlStartStopTask(s, doc));
 
 					if (chkCopyFiles.Checked)
 					{
