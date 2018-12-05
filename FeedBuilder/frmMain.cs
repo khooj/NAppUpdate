@@ -17,7 +17,7 @@ namespace FeedBuilder
 		class StartStopOption
 		{
 			public string Operation { get; set; }
-			public string When { get; set; }
+			public string When { get; set; } // "at_start", "at_end", "before", "after"
 			public string Target { get; set; }
 			public string Executable { get; set; }
 		}
@@ -299,7 +299,6 @@ namespace FeedBuilder
 			catch (UnauthorizedAccessException ex)
 			{
 				lstFiles.Items.Clear();
-				lstFiles.RedrawItems(0, lstFiles.Items.Count - 1, false);
 				MessageBox.Show("Cannot open selected folder.");
 			}
 		}
@@ -329,6 +328,7 @@ namespace FeedBuilder
 		{
 			try
 			{
+				_options.MachineName = Environment.MachineName;
 				string val = Options.Serialize(_options);
 				using (FileStream fs = File.Open(filePath, FileMode.Create))
 				using (StreamWriter sw = new StreamWriter(fs))
@@ -400,6 +400,32 @@ namespace FeedBuilder
 
 			XmlElement tasks = doc.CreateElement("Tasks");
 
+			Dictionary<string, StartStopOption> startStopProcesses = null;
+			List<StartStopOption> atEnd = null;
+			if (_options.LaunchFiles != null)
+			{
+				startStopProcesses = new Dictionary<string, StartStopOption>();
+				
+				foreach (StartStopOption s in _options.LaunchFiles)
+				{
+					if (s.When == "at_start")
+					{
+						tasks.AppendChild(CreateXmlStartStopTask(s, doc));
+						continue;
+					}
+
+					if (s.When == "at_end")
+					{
+						if (atEnd == null)
+							atEnd = new List<StartStopOption>();
+						atEnd.Add(s);
+						continue;
+					}
+
+					startStopProcesses.Add(s.Target, s);
+				}
+			}
+
 			Console.WriteLine("Processing feed items");
 			int itemsCopied = 0;
 			int itemsCleaned = 0;
@@ -427,6 +453,10 @@ namespace FeedBuilder
 				if (thisItem.Checked)
 				{
 					var fileInfoEx = (FileInfoEx)thisItem.Tag;
+					StartStopOption startStopOpt = null;
+					if (startStopProcesses != null && startStopProcesses.ContainsKey(fileInfoEx.RelativeName))
+						startStopOpt = startStopProcesses[fileInfoEx.RelativeName];
+
 					XmlElement task = doc.CreateElement("FileUpdateTask");
 					task.SetAttribute("localPath", fileInfoEx.RelativeName);
                     // generate FileUpdateTask metadata items
@@ -490,7 +520,14 @@ namespace FeedBuilder
 
 					if (conds.ChildNodes.Count == 0) itemsMissingConditions++;
 					task.AppendChild(conds);
+
+					if (startStopOpt != null && startStopOpt.When == "before")
+						tasks.AppendChild(CreateXmlStartStopTask(startStopOpt, doc));
+
 					tasks.AppendChild(task);
+
+					if (startStopOpt != null && startStopOpt.When == "after")
+						tasks.AppendChild(CreateXmlStartStopTask(startStopOpt, doc));
 
 					if (chkCopyFiles.Checked)
 					{
@@ -515,6 +552,11 @@ namespace FeedBuilder
 					}
 				}
 			}
+
+			if (atEnd != null)
+				foreach (StartStopOption s in atEnd)
+					tasks.AppendChild(CreateXmlStartStopTask(s, doc));
+
 			feed.AppendChild(tasks);
 
 			string xmlDest = Path.Combine(destDir.FullName, Path.GetFileName(dest));
@@ -531,11 +573,50 @@ namespace FeedBuilder
 			if (itemsMissingConditions > 0) Console.WriteLine("{0,5} items without any conditions", itemsMissingConditions);
 		}
 
+		private XmlElement CreateXmlStartStopTask(StartStopOption opt, XmlDocument doc)
+		{
+			XmlElement task = null;
+			switch (opt.Operation)
+			{
+				case "start":
+					task = doc.CreateElement("StartProcessTask");
+					break;
+				case "stop":
+					task = doc.CreateElement("StopProcessTask");
+					break;
+				default:
+					throw new ArgumentException("Wrong value in Operation section: " + JsonConvert.SerializeObject(opt));
+			}
+
+			if (string.IsNullOrEmpty(opt.Executable))
+				throw new ArgumentException("Wrong value in Executable section: " + JsonConvert.SerializeObject(opt));
+
+			task.SetAttribute("name", opt.Executable);
+			task.SetAttribute("shell", "True");
+			return task;
+		}
+
 		private void Example()
 		{
 			ResetJson();
 			_options.IgnoreFiles = new List<string>();
-			_options.LaunchFiles = new List<StartStopOption>() { new StartStopOption { Executable = "start.bat", Operation = "start", When = "before", Target = "start.bat" } };
+			_options.LaunchFiles = new List<StartStopOption>()
+			{
+				new StartStopOption
+				{
+					Executable = "stop_service.bat",
+					Operation = "stop",
+					When = "before",
+					Target = "service.exe" // will execute before service.exe update
+				},
+				new StartStopOption
+				{
+					Executable = "service.exe",
+					Operation = "start",
+					When = "after",
+					Target = "service.exe" // will start after file update
+				}
+			};
 			SaveJson(FileName);
 		}
 
