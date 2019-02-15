@@ -8,6 +8,7 @@ using NAppUpdate.Framework.Common;
 using NAppUpdate.Framework.Tasks;
 using NAppUpdate.Framework.Utils;
 using System.Runtime.InteropServices;
+using System.Linq;
 
 namespace NAppUpdate.Updater
 {
@@ -53,6 +54,10 @@ namespace NAppUpdate.Updater
 			_args = ArgumentsParser.Get();
 
 			_args.ParseCommandLineArgs();
+
+			var exists = Process.GetProcessesByName(Path.GetFileNameWithoutExtension(Assembly.GetEntryAssembly().Location)).Count() > 1;
+			if (exists)
+				throw new InvalidOperationException("Process already running. Exiting");
 
 			Log("Starting to process cold updates...");
 
