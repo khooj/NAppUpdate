@@ -55,10 +55,6 @@ namespace NAppUpdate.Updater
 
 			_args.ParseCommandLineArgs();
 
-			var exists = Process.GetProcessesByName(Path.GetFileNameWithoutExtension(Assembly.GetEntryAssembly().Location)).Count() > 1;
-			if (exists)
-				throw new InvalidOperationException("Process already running. Exiting");
-
 			Log("Starting to process cold updates...");
 
 			if (_args.Log)
